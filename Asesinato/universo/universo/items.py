@@ -11,5 +11,10 @@ from scrapy.item import Item, Field
 class UniversoItem(Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-    location = Field()
     date = Field()
+    time = Field()
+    title = Field()
+    content = Field()
+    location = Field()
+    tags_event = Field()
+    tags_location = Field()
