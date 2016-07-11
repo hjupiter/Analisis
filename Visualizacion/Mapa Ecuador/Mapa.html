@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 12px sans-serif;
+}
+
+path {
+  stroke-width: 1px;
+  stroke: white;
+  fill: #999;
+  cursor: pointer;
+}
+
+path.q0-3 {
+  fill: #af8dc3;
+}
+
+path.q1-3 {
+  fill: #f7f7f7;
+}
+
+path.q2-3 {
+  fill: #7fbf7b;
+}
+
+div.tooltip {
+  position: absolute;
+  background-color: white;
+  border: 1px solid black;
+  color: black;
+  font-weight: bold;
+  padding: 4px 8px;
+  display: none;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script>
+
+//Map dimensions (in pixels)
+var width = 1200,
+    height = 800;
+
+//Map projection
+var projection = d3.geo.mercator()
+    .scale(2594.373019485438)
+    .center([-83.61942501249992,-1.676343890850647]) //projection center
+    .translate([width/2,height/2]) //translate to center the map in view
+
+//Generate paths based on projection
+var path = d3.geo.path()
+    .projection(projection);
+
+//Create an SVG
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+//Group for the map features
+var features = svg.append("g")
+    .attr("class","features");
+
+//Create choropleth scale
+var color = d3.scale.quantize()
+    .domain([0,1])
+    .range(d3.range(3).map(function(i) { return "q" + i + "-3"; }));
+
+//Create zoom/pan listener
+//Change [1,Infinity] to adjust the min/max zoom scale
+var zoom = d3.behavior.zoom()
+    .scaleExtent([1, Infinity])
+    .on("zoom",zoomed);
+
+svg.call(zoom);
+
+//Create a tooltip, hidden at the start
+var tooltip = d3.select("body").append("div").attr("class","tooltip");
+
+d3.json("ecu.topojson",function(error,geodata) {
+
+   d3.csv("Mapa.csv", function(error, data) {
+    features.selectAll("circle")
+       .data(data)
+       .enter()
+       .append("a")
+          .attr("xlink:href", function(d) {
+            return "https://www.google.com/search?q="+d.city;}
+          )
+       .append("circle")
+       .attr("cx", function(d) {
+               return projection([d.lon, d.lat])[0];
+       })
+       .attr("cy", function(d) {
+               return projection([d.lon, d.lat])[1];
+       })
+       .attr("r", 0.5)
+       .style("fill", "red");
+  });
+  if (error) return console.log(error); //unknown error, check the console
+
+  //Create a path for each map feature in the data
+  features.selectAll("path")
+    .data(topojson.feature(geodata,geodata.objects.ecuador).features) //generate features from TopoJSON
+    .enter()
+    .append("path")
+    .attr("d",path)
+    .attr("class", function(d) { return (typeof color(d.properties.region) == "string" ? color(d.properties.region) : ""); })
+    .on("mouseover",showTooltip)
+    .on("mousemove",moveTooltip)
+    .on("mouseout",hideTooltip)
+    .on("click",clicked);
+
+});
+
+// Add optional onClick events for features here
+// d.properties contains the attributes (e.g. d.properties.name, d.properties.population)
+function clicked(d,i) {
+
+}
+
+
+//Update map on zoom/pan
+function zoomed() {
+  features.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")")
+      .selectAll("path").style("stroke-width", 1 / zoom.scale() + "px" );
+}
+
+
+//Position of the tooltip relative to the cursor
+var tooltipOffset = {x: 5, y: -25};
+
+//Create a tooltip, hidden at the start
+function showTooltip(d) {
+  moveTooltip();
+
+  tooltip.style("display","block")
+      .text(d.properties.region);
+}
+
+//Move the tooltip to track the mouse
+function moveTooltip() {
+  tooltip.style("top",(d3.event.pageY+tooltipOffset.y)+"px")
+      .style("left",(d3.event.pageX+tooltipOffset.x)+"px");
+}
+
+//Create a tooltip, hidden at the start
+function hideTooltip() {
+  tooltip.style("display","none");
+}
+</script>
